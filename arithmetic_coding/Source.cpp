@@ -227,8 +227,8 @@ int add_bit(int buffer, int value)
 
 int decode(int *freq, string text, string abc)
 {
-	int _low[500];
-	int _high[500];
+	unsigned short int _low[500];
+	unsigned short int _high[500];
 	_low[0] = _low_edge;
 	_high[0] = _high_edge;
 
@@ -238,9 +238,9 @@ int decode(int *freq, string text, string abc)
 
 	unsigned short int value = to_int(text, 0);		// Забираем 16 бит в value
 
-	int bits_to_go = 0;		// Сколько бит осталось в буфере
-	int buffer = 0;			// Сам буфер битов
-	int count_taken = 1;	// Сколько раз забрали в буфер (опр. позицию считывания)
+	int bits_to_go = 0;					// Сколько бит осталось в буфере
+	unsigned short int buffer = 0;		// Сам буфер битов
+	int count_taken = 1;				// Сколько раз забрали в буфер (опр. позицию считывания)
 
 	for (int i = 1; i < text.size(); i++)
 	{
@@ -248,10 +248,10 @@ int decode(int *freq, string text, string abc)
 		cum = (((value - _low[i - 1]) + 1) * del - 1) / range;
 		
 		int symbol;
-		for (symbol = 1; freq[i] > cum; symbol++);
+		for (symbol = 1; freq[symbol] > cum; symbol++);
 
-		_low[i] = _low[i - 1] + (range * freq[i - 1]) / del - 1;
-		_high[i] = _low[i - 1] + (range * freq[i]) / del;
+		_low[i] = _low[i - 1] + (range * freq[symbol - 1]) / del - 1;
+		_high[i] = _low[i - 1] + (range * freq[symbol]) / del;
 
 		if (debug_mode)
 		{
