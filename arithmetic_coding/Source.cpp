@@ -3,11 +3,14 @@
 #include <iostream>
 #include <algorithm>
 #include <bitset>
+#include <cmath>
 #define filename_input "input.txt"
 #define filename_output "output.txt"
 #define debug_mode true
 #define _low_edge 0
 #define _high_edge 65535
+#define mass_size 255
+#define EOF_symbol '-'
 using namespace std;
 
 const int first_qtr = _high_edge/4 + 1;
@@ -40,9 +43,8 @@ string get_abc(string text)
 	/* Добавить символ - в начало*/
 	string abc;
 	bool exit_flag = 0;
-	abc.push_back('-');
-	abc.push_back(text[0]);
-	for (int i = 1; i < text.size(); i++)
+	abc.push_back(EOF_symbol);
+	for (int i = 0; i < text.size(); i++)
 	{
 		exit_flag = 0;
 		for (int j = 0; j < abc.size(); j++)
@@ -63,7 +65,7 @@ string get_abc(string text)
 			continue;
 		}
 	}
-	sort(abc.begin(), abc.end());
+	sort(abc.begin()+1, abc.end());
 	return abc;
 }
 
@@ -137,8 +139,8 @@ void output_file(string filename, string text)
 
 string encode_text(int *freq, string text, string abc)
 {
-	int _low[500];
-	int _high[500];
+	int _low[mass_size];
+	int _high[mass_size];
 	_low[0] = _low_edge;
 	_high[0] = _high_edge;
 	int current = 1;	/* Какой элемент берём */
@@ -205,14 +207,20 @@ string to_bits_16(int _value)
 	return mystring;
 }
 
-int add_bit(int buffer, int value)
+int add_bit(int value, int buffer)
 {
 	/* Создаем битсет объекты */
 	bitset<16> a(value);
 	bitset<16> b(buffer);
+	
+	if (debug_mode)
+	{
+		cout << "Current buffer: " << b << endl;
+		cout << "Current value: " << a << endl;
+	}
 
 	/* Проверяем первый бит в буффере (если 1)*/
-	bool check = b.test(0);
+	bool check = b.test(15);
 	if (check)
 	{
 		a.set(0);
@@ -222,13 +230,21 @@ int add_bit(int buffer, int value)
 		a.reset(0);
 	}
 	value = (unsigned short int)(a.to_ulong());
+
+	if (debug_mode)
+	{
+		cout << "add_bit value: " << a << endl << endl;
+	}
+
 	return value;
 }
 
-int decode(int *freq, string text, string abc)
+string decode(int *freq, string text, string abc)
 {
-	unsigned short int _low[500];
-	unsigned short int _high[500];
+	string decode_text = "";
+
+	unsigned short int _low[mass_size];
+	unsigned short int _high[mass_size];
 	_low[0] = _low_edge;
 	_high[0] = _high_edge;
 
@@ -248,7 +264,7 @@ int decode(int *freq, string text, string abc)
 		cum = (((value - _low[i - 1]) + 1) * del - 1) / range;
 		
 		int symbol;
-		for (symbol = 1; freq[symbol] > cum; symbol++);
+		for (symbol = 1; freq[symbol] <= cum; symbol++); //Другой знак
 
 		_low[i] = _low[i - 1] + (range * freq[symbol - 1]) / del - 1;
 		_high[i] = _low[i - 1] + (range * freq[symbol]) / del;
@@ -257,6 +273,8 @@ int decode(int *freq, string text, string abc)
 		{
 			cout << "Symbol is: " << abc.at(symbol) << endl;
 			cout << "Value is: " << value << endl;
+			decode_text += abc.at(symbol);
+			cout << "Current string is: " << decode_text << endl << endl;
 		}
 
 		for (;;)
@@ -286,12 +304,12 @@ int decode(int *freq, string text, string abc)
 				buffer = to_int(text, 16 * count_taken);
 				bits_to_go = 16;
 			}
-			value = add_bit(value*2, buffer);
-			buffer = buffer >> 1;
+			value = add_bit(2*value, buffer);
+			buffer = buffer << 1;
 			bits_to_go--;
 		}
 	}
-	return value;
+	return decode_text;
 }
 
 void test_function(string text)
@@ -319,7 +337,7 @@ void test_function(string text)
 	bitset<16> b(buffer);
 
 	/* Проверяем первый бит в буффере (если 1)*/
-	bool check = b.test(0);
+	bool check = b.test(15);
 	if (check)
 	{
 		a.set(0);
@@ -368,7 +386,7 @@ int main()
 
 	//test_function(code);
 
-	int temp = decode(freq, code, abc);
+	string temp = decode(freq, code, abc);
 	cout << temp << endl;
 	return 0;
 }
