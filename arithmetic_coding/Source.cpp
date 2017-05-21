@@ -6,11 +6,13 @@
 #include <cmath>
 #define filename_input "input.txt"
 #define filename_output "output.txt"
-#define debug_mode true
+#define debug_mode false
 #define _low_edge 0
 #define _high_edge 65535
-#define mass_size 255
 #define EOF_symbol '-'
+#define symbol_break '\0'
+#define test_count 10000
+#define length_of_string 100
 using namespace std;
 
 const int first_qtr = _high_edge/4 + 1;
@@ -65,7 +67,7 @@ string get_abc(string text)
 			continue;
 		}
 	}
-	sort(abc.begin()+1, abc.end());
+	//sort(abc.begin()+1, abc.end());
 	return abc;
 }
 
@@ -139,26 +141,31 @@ void output_file(string filename, string text)
 
 string encode_text(int *freq, string text, string abc)
 {
-	int _low[mass_size];
-	int _high[mass_size];
+	int mass_size = text.length();
+	unsigned short int *_low = new unsigned short int[mass_size];
+	unsigned short int *_high = new unsigned short int[mass_size];
 	_low[0] = _low_edge;
 	_high[0] = _high_edge;
 	int current = 1;	/* Какой элемент берём */
 	int i = 0;			/* Где находимся */
-	int range = 0;
+	unsigned int range = 0;
 	/* Del - последняя накопленная частота */
 	int del = freq[abc.size() - 1];
 	int bits_to_foll = 0;
 	string code = "";
 
-	while (i < text.size())
+	while (i < text.length())
 	{
 		get_next_symbol(text, abc, i, &current);
 		i += 1;
+
 		range = _high[i - 1] - _low[i - 1] + 1;
 		_low[i] = _low[i - 1] + (range*freq[current - 1])/del;
 		_high[i] = _low[i - 1] + (range*freq[current])/del - 1;
-		cout << "[" << _low[i] << "; " << _high[i] << ")" << endl;
+		if (debug_mode)
+		{
+			cout << "[" << _low[i] << "; " << _high[i] << ")" << endl;
+		}
 
 		for (;;)
 		{
@@ -185,7 +192,10 @@ string encode_text(int *freq, string text, string abc)
 			_high[i] = 2 * _high[i] + 1;
 		}
 	}
-	cout << endl << code << endl;
+	if (debug_mode)
+	{
+		cout << endl << code << endl;
+	}
 	return code;
 }
 
@@ -207,74 +217,73 @@ string to_bits_16(int _value)
 	return mystring;
 }
 
-int add_bit(int value, int buffer)
+int add_bit(int value, int count_taken, string text, bool &flag)
 {
 	/* Создаем битсет объекты */
 	bitset<16> a(value);
-	bitset<16> b(buffer);
 	
-	//if (debug_mode)
-	//{
-	//	cout << "Current buffer: " << b << endl;
-	//	cout << "Current value: " << a << endl;
-	//}
-
 	/* Проверяем первый бит в буффере (если 1)*/
-	bool check = b.test(15);
-	if (check)
+	if (flag == 1)
+	{
+		a.reset(0);
+	}
+	else if (count_taken >= text.length())
+	{
+		a.set(0);
+		flag = 1;
+	}
+	else if (text[count_taken] == '1')
 	{
 		a.set(0);
 	}
-	else
+	else if (text[count_taken] == '0')
 	{
 		a.reset(0);
 	}
 	value = (unsigned short int)(a.to_ulong());
-
-	//if (debug_mode)
-	//{
-	//	cout << "add_bit value: " << a << endl << endl;
-	//}
-
 	return value;
 }
 
 string decode(int *freq, string text, string abc)
 {
 	string decode_text = "";
-
-	unsigned short int _low[mass_size];
-	unsigned short int _high[mass_size];
+	int mass_size = text.length();
+	unsigned short int *_low = new unsigned short int[mass_size];
+	unsigned short int *_high = new unsigned short int[mass_size];
 	_low[0] = _low_edge;
 	_high[0] = _high_edge;
 
-	int range = 0;
-	int cum = 0;
+	unsigned int range = 0;
+	unsigned int cum = 0;
 	int del = freq[abc.size() - 1];
 
 	unsigned short int value = to_int(text, 0);		// Забираем 16 бит в value
+	int count_taken = 16;
 
-	int bits_to_go = 0;					// Сколько бит осталось в буфере
-	unsigned short int buffer = 0;		// Сам буфер битов
-	int count_taken = 1;				// Сколько раз забрали в буфер (опр. позицию считывания)
+	bool flag = 0;
 
-	for (int i = 1; i < text.size(); i++)
+	for (int i = 1;; i++)
 	{
 		range = (_high[i - 1] - _low[i - 1]) + 1;
 		cum = (((value - _low[i - 1]) + 1) * del - 1) / range;
 		
 		int symbol;
-		for (symbol = 1; freq[symbol] <= cum; symbol+=1); //Другой знак
+		for (symbol = 1; freq[symbol] <= cum; symbol++); //Другой знак
 
 		_low[i] = _low[i - 1] + (range * freq[symbol - 1]) / del;
 		_high[i] = _low[i - 1] + (range * freq[symbol]) / del - 1;
 
+		decode_text += abc[symbol];
 		if (debug_mode)
 		{
 			cout << "Symbol is: " << abc.at(symbol) << endl;
 			cout << "Value is: " << value << endl;
-			decode_text += abc.at(symbol);
 			cout << "Current string is: " << decode_text << endl << endl;
+		}
+
+		if (abc[symbol] == symbol_break)
+		{
+			return decode_text;
 		}
 
 		for (;;)
@@ -298,21 +307,13 @@ string decode(int *freq, string text, string abc)
 					break;
 				}
 			}
+
 			_low[i] = 2 * _low[i];
 			_high[i] = 2 * _high[i] + 1;
-
-			/* Заполнение буфера */
-			if (bits_to_go == 0)
-			{
-				buffer = to_int(text, 16 * count_taken);
-				bits_to_go = 16;
-			}
-			value = add_bit(2*value, buffer);
-			buffer = buffer << 1;
-			bits_to_go--;
+			value = add_bit(2*value, count_taken, text, flag);
+			count_taken++;
 		}
 	}
-	return decode_text;
 }
 
 void test_function(string text)
@@ -365,31 +366,57 @@ void test_function(string text)
 	//cout << "Buffer (16-31) LAST: " << _buffer << endl << endl;
 }
 
+/* Generate random char[n] */
+void gen(char* p, size_t n)
+{
+	while (n--)
+	{
+		char ch;
+		while ((ch = (char)(rand() % (127 - '0' + 1) + '0')), !isalnum(ch));
+		*p++ = ch;
+	}
+	*p = 0;
+}
+
 int main()
 {
 	//string text = get_file(filename_input);
-	string text = "Hello, world!";
-	string abc = get_abc(text);
-	int *freq = new int[abc.size()];
-	get_frequency(text, freq, abc);
-
-	if (debug_mode)
+	for (int i = 0; i < test_count; i++)
 	{
-		cout << text << endl;
-		cout << abc << endl;
-		for (int i = 0; i < abc.size(); i++)
+		char s[length_of_string + 1] = { 0 };
+		gen(s, length_of_string);
+		string text(s);
+
+		text.push_back(symbol_break);
+		string abc = get_abc(text);
+		int *freq = new int[abc.size()];
+		get_frequency(text, freq, abc);
+
+		if (debug_mode)
 		{
-			cout << abc[i] << " - " << freq[i] << endl;
+			cout << text << endl;
+			cout << abc << endl;
+			for (int i = 0; i < abc.size(); i++)
+			{
+				cout << abc[i] << " - " << freq[i] << endl;
+			}
+			cout << endl;
+		}
+
+		string encoding = encode_text(freq, text, abc);
+		string decoding = decode(freq, encoding, abc);
+
+		cout << "Test #" << i << ": ";
+		if (text == decoding)
+		{
+			cout << "good";
+		}
+		else
+		{
+			cout << "bad" << endl;
+			cout << "break at: " << i;
 		}
 		cout << endl;
 	}
-
-	string code = encode_text(freq, text, abc);
-	output_file(filename_output, code);
-
-	//test_function(code);
-
-	string temp = decode(freq, code, abc);
-	cout << temp << endl;
 	return 0;
 }
