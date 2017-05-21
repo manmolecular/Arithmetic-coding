@@ -213,11 +213,11 @@ int add_bit(int value, int buffer)
 	bitset<16> a(value);
 	bitset<16> b(buffer);
 	
-	if (debug_mode)
-	{
-		cout << "Current buffer: " << b << endl;
-		cout << "Current value: " << a << endl;
-	}
+	//if (debug_mode)
+	//{
+	//	cout << "Current buffer: " << b << endl;
+	//	cout << "Current value: " << a << endl;
+	//}
 
 	/* Проверяем первый бит в буффере (если 1)*/
 	bool check = b.test(15);
@@ -231,10 +231,10 @@ int add_bit(int value, int buffer)
 	}
 	value = (unsigned short int)(a.to_ulong());
 
-	if (debug_mode)
-	{
-		cout << "add_bit value: " << a << endl << endl;
-	}
+	//if (debug_mode)
+	//{
+	//	cout << "add_bit value: " << a << endl << endl;
+	//}
 
 	return value;
 }
@@ -264,10 +264,10 @@ string decode(int *freq, string text, string abc)
 		cum = (((value - _low[i - 1]) + 1) * del - 1) / range;
 		
 		int symbol;
-		for (symbol = 1; freq[symbol] <= cum; symbol++); //Другой знак
+		for (symbol = 1; freq[symbol] <= cum; symbol+=1); //Другой знак
 
-		_low[i] = _low[i - 1] + (range * freq[symbol - 1]) / del - 1;
-		_high[i] = _low[i - 1] + (range * freq[symbol]) / del;
+		_low[i] = _low[i - 1] + (range * freq[symbol - 1]) / del;
+		_high[i] = _low[i - 1] + (range * freq[symbol]) / del - 1;
 
 		if (debug_mode)
 		{
@@ -293,7 +293,10 @@ string decode(int *freq, string text, string abc)
 					_low[i] -= first_qtr;
 					_high[i] -= first_qtr;
 				}
-				else break;
+				else
+				{
+					break;
+				}
 			}
 			_low[i] = 2 * _low[i];
 			_high[i] = 2 * _high[i] + 1;
